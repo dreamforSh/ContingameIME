@@ -1,2 +1,6 @@
 {
+  "key.contingameime.hotkey": "Toggle IME State",
+  "category.contingameime.keybinding": "ContingameIME",
+  "alpha.contingameime.mode": "A",
+  "native.contingameime.mode": "ENG"
 }

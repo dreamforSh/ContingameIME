@@ -1,16 +1,21 @@
 {
-  "required": true,
+  "required": false,
   "minVersion": "0.8",
   "package": "com.xinian.contingameime.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
   ],
   "client": [
+    "ChatScreenAccessor",
+    "MixinAbstractWidget",
+    "MixinChatScreen",
+    "MixinEditBox",
+    "MixinEditScreen",
+    "MixinMinecraft",
+    "MixinMouseHandler",
+    "MixinScreen"
   ],
   "injectors": {
-    "defaultRequire": 1
-  },
-  "overwrites": {
-    "requireAnnotations": true
+    "defaultRequire": 0
   }
 }

@@ -1,51 +1,96 @@
 package com.xinian.contingameime;
 
+import city.windmill.ingameime.client.jni.ExternalBaseIME;
 import com.mojang.logging.LogUtils;
+import com.xinian.contingameime.client.event.ClientScreenEventHooks;
+import com.xinian.contingameime.client.gui.OverlayScreen;
+import com.xinian.contingameime.client.handler.ConfigHandler;
+import com.xinian.contingameime.client.handler.IMEHandler;
+import com.xinian.contingameime.client.handler.KeyHandler;
+import com.xinian.contingameime.client.handler.ScreenHandler;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.material.MapColor;
-import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
-import net.neoforged.neoforge.registries.DeferredRegister;
 import org.slf4j.Logger;
 
-// The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(Contingameime.MODID)
 public class Contingameime {
-    // Define mod id in a common place for everything to reference
     public static final String MODID = "contingameime";
-    // Directly reference a slf4j logger
     private static final Logger LOGGER = LogUtils.getLogger();
-    // ...existing code...
 
-    // The constructor for the mod class is the first code that is run when your mod is loaded.
-    // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
     public Contingameime(IEventBus modEventBus, ModContainer modContainer) {
-        // ...existing code...
+        modEventBus.addListener(this::onClientSetup);
+        modEventBus.addListener(this::onRegisterKeyMappings);
     }
 
+    private void onClientSetup(FMLClientSetupEvent event) {
+        if (Util.getPlatform() != Util.OS.WINDOWS) {
+            LOGGER.warn("ContingameIME only works on Windows!");
+            return;
+        }
+        LOGGER.info("ContingameIME: Windows detected, loading mod...");
 
+        event.enqueueWork(() -> {
+            ConfigHandler.initialConfig();
+
+            // Register event listeners
+            ClientScreenEventHooks.registerMouseMove((prevX, prevY, curX, curY) ->
+                    IMEHandler.IMEState.COMPANION.onMouseMove());
+
+            ClientScreenEventHooks.registerWindowSizeChanged((sizeX, sizeY) ->
+                    ExternalBaseIME.INSTANCE.setFullScreen(Minecraft.getInstance().getWindow().isFullscreen()));
+
+            ClientScreenEventHooks.registerScreenChanged(ScreenHandler::onScreenChange);
+
+            ClientScreenEventHooks.registerEditOpen(ScreenHandler.EditState::onEditOpen);
+            ClientScreenEventHooks.registerEditCaret(ScreenHandler.EditState::onEditCaret);
+            ClientScreenEventHooks.registerEditClose(ScreenHandler.EditState::onEditClose);
+
+            // Initialize native IME
+            ExternalBaseIME.INSTANCE.initialize();
+            LOGGER.info("Current IME State: {}", ExternalBaseIME.INSTANCE.getState());
+        });
+
+        // Register NeoForge event listeners for screen rendering and key input
+        NeoForge.EVENT_BUS.addListener(this::onScreenRenderPost);
+        NeoForge.EVENT_BUS.addListener(this::onKeyPressed);
+        NeoForge.EVENT_BUS.addListener(this::onKeyReleased);
+    }
+
+    private void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+        event.register(KeyHandler.TOGGLE_KEY);
+    }
+
+    // Track mouse movement
+    private int prevMouseX = 0;
+    private int prevMouseY = 0;
+
+    private void onScreenRenderPost(ScreenEvent.Render.Post event) {
+        int mouseX = event.getMouseX();
+        int mouseY = event.getMouseY();
+        if (mouseX != prevMouseX || mouseY != prevMouseY) {
+            ClientScreenEventHooks.fireMouseMove(prevMouseX, prevMouseY, mouseX, mouseY);
+            prevMouseX = mouseX;
+            prevMouseY = mouseY;
+        }
+        OverlayScreen.INSTANCE.render(event.getGuiGraphics(), mouseX, mouseY, event.getPartialTick());
+    }
+
+    private void onKeyPressed(ScreenEvent.KeyPressed.Pre event) {
+        if (KeyHandler.onKeyDown(event.getKeyCode(), event.getScanCode(), event.getModifiers())) {
+            event.setCanceled(true);
+        }
+    }
+
+    private void onKeyReleased(ScreenEvent.KeyReleased.Pre event) {
+        if (KeyHandler.onKeyUp(event.getKeyCode(), event.getScanCode(), event.getModifiers())) {
+            event.setCanceled(true);
+        }
+    }
 }
