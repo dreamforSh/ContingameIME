@@ -18,7 +18,26 @@ public class MixinChatScreen {
 
     @Inject(method = "moveInHistory", at = @At("RETURN"))
     private void onHistoryMove(int i, CallbackInfo ci) {
-        if (input.getValue().startsWith("/") && ConfigHandler.isDisableIMEInCommandMode()) {
+        checkCommandMode();
+    }
+
+    /**
+     * Detect command format in real-time as user types.
+     * If the text starts with '/', disable IME; otherwise enable it.
+     */
+    @Inject(method = "keyPressed", at = @At("RETURN"))
+    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfo ci) {
+        checkCommandMode();
+    }
+
+    @Inject(method = "onEdited", at = @At("RETURN"))
+    private void onEdited(String text, CallbackInfo ci) {
+        checkCommandMode();
+    }
+
+    private void checkCommandMode() {
+        if (!ConfigHandler.isDisableIMEInCommandMode()) return;
+        if (input.getValue().startsWith("/")) {
             IMEHandler.IMEState.COMPANION.onEditState(ScreenHandler.EditState.NULL_EDIT);
         } else {
             IMEHandler.IMEState.COMPANION.onEditState(ScreenHandler.EditState.EDIT_OPEN);

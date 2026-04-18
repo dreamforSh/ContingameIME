@@ -42,7 +42,8 @@ public class ExternalBaseIME {
         LOGGER.trace("FullScreen {} -> {}", fullScreen, value);
         fullScreen = value;
         if (!initialized) return;
-        nSetFullScreen(fullScreen);
+        // Always pass false to native so IME candidate window shows even in fullscreen
+        nSetFullScreen(false);
         if (state) {
             setState(false);
             setState(true);
