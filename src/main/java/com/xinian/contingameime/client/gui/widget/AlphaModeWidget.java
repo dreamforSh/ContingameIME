@@ -17,7 +17,7 @@ public class AlphaModeWidget extends Widget {
         return t;
     });
 
-    private boolean active = false;
+    private volatile boolean active = false;
     private ScheduledFuture<?> hideDelay;
 
     public AlphaModeWidget(Font font) {
@@ -33,10 +33,10 @@ public class AlphaModeWidget extends Widget {
 
     public void setActive(boolean value) {
         if (hideDelay != null) hideDelay.cancel(false);
+        active = value;
         if (value) {
             hideDelay = SCHEDULER.schedule(() -> active = false, 3, TimeUnit.SECONDS);
         }
-        active = value;
     }
 
     @Override

@@ -16,14 +16,15 @@ public class NativeLoader {
         try {
             LOGGER.debug("Try load native from resource");
             Path tempFile = Files.createTempFile("IngameIME-Native", ".dll");
+            tempFile.toFile().deleteOnExit();
             LOGGER.debug("Copying Native to {}", tempFile);
             try (InputStream is = lib.open()) {
                 Files.copy(is, tempFile, StandardCopyOption.REPLACE_EXISTING);
             }
             System.load(tempFile.toAbsolutePath().toString());
+            LOGGER.info("Native library loaded from {}", tempFile);
         } catch (Exception e) {
             LOGGER.error("Failed to load native library:", e);
         }
     }
 }
-

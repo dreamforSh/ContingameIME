@@ -140,8 +140,8 @@ public class ScreenHandler {
         }
 
         public static void onEditOpen(Object edit, int cx, int cy) {
-            editState = editState.handleEditOpen(edit, cx, cy);
-            setEditState(editState);
+            EditState newState = editState.handleEditOpen(edit, cx, cy);
+            setEditState(newState);
         }
 
         public static void onEditCaret(Object edit, int cx, int cy) {
@@ -151,6 +151,16 @@ public class ScreenHandler {
         public static void onEditClose(Object edit) {
             EditState newState = editState.handleEditClose(edit);
             setEditState(newState);
+        }
+
+        /**
+         * Force close any open edit - used when screen interactions indicate no edit should be active.
+         */
+        public static void forceClose() {
+            if (editState == EDIT_OPEN) {
+                currentEdit = null;
+                setEditState(NULL_EDIT);
+            }
         }
 
         abstract EditState handleEditOpen(Object edit, int cx, int cy);

@@ -3,6 +3,7 @@ package city.windmill.ingameime.client.jni;
 import com.xinian.contingameime.client.gui.OverlayScreen;
 import com.xinian.contingameime.client.handler.IMEHandler;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.resources.ResourceLocation;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,22 +19,27 @@ public class ExternalBaseIME {
 
     private ICommitListener commitListener = IMEHandler.IMEState.COMPANION;
 
-    private boolean initialized = false;
-    private boolean state = false;
-    private boolean fullScreen = false;
-    private boolean alphaMode = false;
+    private volatile boolean initialized = false;
+    private volatile boolean state = false;
+    private volatile boolean fullScreen = false;
+    private volatile boolean alphaMode = false;
 
     private ExternalBaseIME() {}
 
     public ICommitListener getCommitListener() { return commitListener; }
     public void setCommitListener(ICommitListener listener) { this.commitListener = listener; }
 
+    public boolean isInitialized() { return initialized; }
     public boolean getState() { return state; }
     public void setState(boolean value) {
         LOGGER.trace("State {} -> {}", state, value);
         state = value;
         if (!initialized) return;
-        nSetState(state);
+        try {
+            nSetState(state);
+        } catch (Exception e) {
+            LOGGER.error("Failed to set native IME state:", e);
+        }
         OverlayScreen.INSTANCE.setShowAlphaMode(state);
     }
 
@@ -42,17 +48,18 @@ public class ExternalBaseIME {
         LOGGER.trace("FullScreen {} -> {}", fullScreen, value);
         fullScreen = value;
         if (!initialized) return;
-        // Always pass false to native so IME candidate window shows even in fullscreen
-        nSetFullScreen(false);
-        if (state) {
-            setState(false);
-            setState(true);
+        try {
+            // Always pass false to native so IME candidate window shows even in fullscreen/borderless
+            nSetFullScreen(false);
+        } catch (Exception e) {
+            LOGGER.error("Failed to set native fullscreen state:", e);
         }
     }
 
     public boolean getAlphaMode() { return alphaMode; }
 
     public void initialize() {
+        if (initialized) return;
         try {
             String arch = System.getProperty("os.arch");
             String x86 = arch.contains("64") ? "" : "-x86";
@@ -60,8 +67,10 @@ public class ExternalBaseIME {
             var resource = Minecraft.getInstance().getResourceManager().getResource(resourceNative).orElseThrow();
             NativeLoader.load(resource);
             LOGGER.debug("Initializing window");
-            nInitialize(GLFWNativeWin32.glfwGetWin32Window(Minecraft.getInstance().getWindow().getWindow()));
+            long hwnd = GLFWNativeWin32.glfwGetWin32Window(Minecraft.getInstance().getWindow().getWindow());
+            nInitialize(hwnd);
             initialized = true;
+            LOGGER.info("Native IME initialized successfully");
             setFullScreen(Minecraft.getInstance().getWindow().isFullscreen());
         } catch (Exception ex) {
             LOGGER.error("Failed in initializing ExternalBaseIME:", ex);
@@ -88,9 +97,10 @@ public class ExternalBaseIME {
                 OverlayScreen.INSTANCE.setComposition(null, 0);
                 String result = commitListener.onCommit(str);
                 Minecraft.getInstance().execute(() -> {
-                    for (char ch : result.toCharArray()) {
-                        if (Minecraft.getInstance().screen != null) {
-                            Minecraft.getInstance().screen.charTyped(ch, 0);
+                    Screen screen = Minecraft.getInstance().screen;
+                    if (screen != null) {
+                        for (char ch : result.toCharArray()) {
+                            screen.charTyped(ch, 0);
                         }
                     }
                 });

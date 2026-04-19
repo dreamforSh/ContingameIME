@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Track mouse button events for IME state management.
- * Ported from IMBlocker's MouseMixin.
  */
 @Mixin(MouseHandler.class)
 public class MixinMouseHandler {
@@ -20,7 +19,7 @@ public class MixinMouseHandler {
     @Shadow
     private Minecraft minecraft;
 
-    @Inject(method = "onPress", at = @At("HEAD"))
+    @Inject(method = "onPress", at = @At("RETURN"))
     private void onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
         if (minecraft.screen != null) {
             // Trigger mouse move event to help with temporary IME state transitions
@@ -28,4 +27,3 @@ public class MixinMouseHandler {
         }
     }
 }
-

@@ -12,44 +12,64 @@ import net.minecraft.client.gui.components.Renderable;
 public class OverlayScreen implements Renderable {
     public static final OverlayScreen INSTANCE = new OverlayScreen();
 
-    private final AlphaModeWidget alphaModeWidget;
-    private final CompositionWidget compositionWidget;
-    private final CandidateListWidget candidateListWidget;
+    private AlphaModeWidget alphaModeWidget;
+    private CompositionWidget compositionWidget;
+    private CandidateListWidget candidateListWidget;
+    private boolean initialized = false;
 
     private int caretX = 0;
     private int caretY = 0;
 
-    private OverlayScreen() {
-        alphaModeWidget = new AlphaModeWidget(Minecraft.getInstance().font);
-        compositionWidget = new CompositionWidget(Minecraft.getInstance().font);
-        candidateListWidget = new CandidateListWidget(Minecraft.getInstance().font);
+    private OverlayScreen() {}
+
+    /**
+     * Lazily initialize widgets - must be called on the render thread after Minecraft is ready.
+     */
+    private void ensureInitialized() {
+        if (initialized) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.font == null) return;
+        alphaModeWidget = new AlphaModeWidget(mc.font);
+        compositionWidget = new CompositionWidget(mc.font);
+        candidateListWidget = new CandidateListWidget(mc.font);
+        initialized = true;
     }
 
     public void setCaretPos(int x, int y) {
         if (caretX == x && caretY == y) return;
         caretX = x;
         caretY = y;
+        ensureInitialized();
+        if (!initialized) return;
         adjustCompositionPos();
         adjustPosByComposition(alphaModeWidget);
     }
 
     public void setShowAlphaMode(boolean value) {
+        ensureInitialized();
+        if (!initialized) return;
         alphaModeWidget.setActive(value);
         adjustPosByComposition(alphaModeWidget);
     }
 
     public void setCandidates(String[] candidates) {
+        ensureInitialized();
+        if (!initialized) return;
         candidateListWidget.setCandidates(candidates);
         adjustPosByComposition(candidateListWidget);
     }
 
     public void setComposition(String text, int caret) {
+        ensureInitialized();
+        if (!initialized) return;
         compositionWidget.setCompositionData(text, caret);
         adjustCompositionPos();
         adjustPosByComposition(candidateListWidget);
     }
 
     public int[] getCompositionExt() {
+        ensureInitialized();
+        if (!initialized) return new int[]{0, 0, 0, 0};
         double scale = Minecraft.getInstance().getWindow().getGuiScale();
         return new int[]{
                 (int) (compositionWidget.getOffsetX() * scale),
@@ -60,11 +80,13 @@ public class OverlayScreen implements Renderable {
     }
 
     public boolean isComposing() {
-        return compositionWidget.getCompositionText() != null;
+        return initialized && compositionWidget.getCompositionText() != null;
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+        ensureInitialized();
+        if (!initialized) return;
         if (ExternalBaseIME.INSTANCE.getState()) {
             var poseStack = guiGraphics.pose();
             poseStack.pushPose();
@@ -97,4 +119,3 @@ public class OverlayScreen implements Renderable {
         widget.moveTo(x, y);
     }
 }
-

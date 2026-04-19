@@ -31,17 +31,15 @@ public class MixinMinecraft {
     }
 
     /**
-     * Sync IME state when window regains focus.
-     * Ported from IMBlocker's MinecraftClientMixin.
+     * Sync IME fullscreen state when window regains focus.
+     * Only operates after native IME has been initialized.
      */
     @Inject(method = "setWindowActive", at = @At("HEAD"))
     private void onWindowFocusChanged(boolean focused, CallbackInfo ci) {
-        if (focused) {
-            try {
-                ExternalBaseIME.INSTANCE.setFullScreen(
-                    Minecraft.getInstance().getWindow().isFullscreen()
-                );
-            } catch (Exception ignored) {}
+        if (focused && ExternalBaseIME.INSTANCE.isInitialized()) {
+            ExternalBaseIME.INSTANCE.setFullScreen(
+                Minecraft.getInstance().getWindow().isFullscreen()
+            );
         }
     }
 }
