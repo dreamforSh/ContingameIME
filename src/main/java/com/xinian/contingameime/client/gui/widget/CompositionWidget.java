@@ -43,8 +43,9 @@ public class CompositionWidget extends Widget {
 
         super.draw(guiGraphics, ox, oy, mouseX, mouseY, delta);
 
-        String part1 = compositionText.substring(0, compositionCaret);
-        String part2 = compositionText.substring(compositionCaret);
+        int clampedCaret = Math.max(0, Math.min(compositionCaret, compositionText.length()));
+        String part1 = compositionText.substring(0, clampedCaret);
+        String part2 = compositionText.substring(clampedCaret);
 
         int dx = ox + getPaddingX();
         int dy = oy + getPaddingY();

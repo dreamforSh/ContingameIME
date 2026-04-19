@@ -27,9 +27,9 @@ public class KeyHandler {
             "category.contingameime.keybinding"
     );
 
-    private static KeyState keyState = KeyState.PENDING_KEY_DOWN;
-    private static ScheduledFuture<?> delayLongPress;
-    private static ScheduledFuture<?> longPressRepeat;
+    private static volatile KeyState keyState = KeyState.PENDING_KEY_DOWN;
+    private static volatile ScheduledFuture<?> delayLongPress;
+    private static volatile ScheduledFuture<?> longPressRepeat;
 
     public static boolean onKeyDown(int keyCode, int scanCode, int modifier) {
         if (keyCode == TOGGLE_KEY.getKey().getValue()) {
@@ -50,6 +50,9 @@ public class KeyHandler {
     private enum KeyState {
         PENDING_KEY_DOWN {
             @Override KeyState handleKeyDown() {
+                // Cancel any leftover tasks from previous cycles
+                if (longPressRepeat != null) longPressRepeat.cancel(false);
+                if (delayLongPress != null) delayLongPress.cancel(false);
                 longPressRepeat = SCHEDULER.scheduleAtFixedRate(() -> {
                     if (keyState == COUNTING_LONG_PRESS) {
                         Minecraft.getInstance().execute(() -> onKeyAction(KeyAction.KEY_LONG_PRESS));
@@ -85,8 +88,8 @@ public class KeyHandler {
     private enum KeyAction { KEY_CLICKED, KEY_LONG_PRESS }
 
     // CombinationKey
-    private static CombinationKeyState combinationKeyState = CombinationKeyState.PENDING_CLICK;
-    private static ScheduledFuture<?> delayDoubleClick;
+    private static volatile CombinationKeyState combinationKeyState = CombinationKeyState.PENDING_CLICK;
+    private static volatile ScheduledFuture<?> delayDoubleClick;
 
     private static void onKeyAction(KeyAction action) {
         combinationKeyState = combinationKeyState.handleAction(action);
@@ -105,7 +108,8 @@ public class KeyHandler {
                         yield PENDING_DOUBLE_CLICK;
                     }
                     case KEY_LONG_PRESS -> {
-                        IMEHandler.IMEState.COMPANION.onAction(CombinationKeyAction.LONG_PRESS);
+                        Minecraft.getInstance().execute(() ->
+                            IMEHandler.IMEState.COMPANION.onAction(CombinationKeyAction.LONG_PRESS));
                         yield PENDING_CLICK;
                     }
                 };
@@ -116,10 +120,12 @@ public class KeyHandler {
                 switch (action) {
                     case KEY_CLICKED -> {
                         if (delayDoubleClick != null) delayDoubleClick.cancel(false);
-                        IMEHandler.IMEState.COMPANION.onAction(CombinationKeyAction.DOUBLE_CLICKED);
+                        Minecraft.getInstance().execute(() ->
+                            IMEHandler.IMEState.COMPANION.onAction(CombinationKeyAction.DOUBLE_CLICKED));
                     }
                     case KEY_LONG_PRESS ->
-                        IMEHandler.IMEState.COMPANION.onAction(CombinationKeyAction.LONG_PRESS);
+                        Minecraft.getInstance().execute(() ->
+                            IMEHandler.IMEState.COMPANION.onAction(CombinationKeyAction.LONG_PRESS));
                 }
                 return PENDING_CLICK;
             }
@@ -129,4 +135,3 @@ public class KeyHandler {
 
     public enum CombinationKeyAction { CLICKED, DOUBLE_CLICKED, LONG_PRESS }
 }
-

@@ -1,6 +1,8 @@
 package com.xinian.contingameime.client;
 
-import java.util.HashMap;
+import java.util.WeakHashMap;
+import java.util.Collections;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -11,7 +13,7 @@ public class TextFieldDetector {
     private static final Pattern TEXT_FIELD_PATTERN = Pattern.compile(
             ".*(TextField|EditBox|EditText|TextInput|SearchField|InputField)[^.]*$",
             Pattern.CASE_INSENSITIVE);
-    private static final HashMap<Class<?>, Boolean> cache = new HashMap<>();
+    private static final Map<Class<?>, Boolean> cache = Collections.synchronizedMap(new WeakHashMap<>());
 
     public static boolean isTextField(Class<?> c) {
         if (c == null) return false;

@@ -99,22 +99,28 @@ public class ConfigHandler {
             }
             try (JsonReader reader = new JsonReader(new FileReader(config.toFile()))) {
                 JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
-                setDisableIMEInCommandMode(json.get("disableIMEInCommandMode").getAsBoolean());
-                setAutoReplaceSlashChar(json.get("autoReplaceSlashChar").getAsBoolean());
-                JsonArray arr = json.get("slashChars").getAsJsonArray();
-                char[] chars = new char[arr.size()];
-                for (int i = 0; i < arr.size(); i++) {
-                    String s = arr.get(i).getAsString();
-                    chars[i] = s.isEmpty() ? ' ' : s.charAt(0);
+                if (json.has("disableIMEInCommandMode")) {
+                    setDisableIMEInCommandMode(json.get("disableIMEInCommandMode").getAsBoolean());
                 }
-                slashCharArray = chars;
+                if (json.has("autoReplaceSlashChar")) {
+                    setAutoReplaceSlashChar(json.get("autoReplaceSlashChar").getAsBoolean());
+                }
+                if (json.has("slashChars")) {
+                    JsonArray arr = json.get("slashChars").getAsJsonArray();
+                    char[] chars = new char[arr.size()];
+                    for (int i = 0; i < arr.size(); i++) {
+                        String s = arr.get(i).getAsString();
+                        chars[i] = s.isEmpty() ? ' ' : s.charAt(0);
+                    }
+                    slashCharArray = chars;
+                }
             }
         } catch (Exception e) {
             LOGGER.warn("Failed to read config:", e);
             LOGGER.warn("Loading Default config");
             loadDefaultConfig();
+            saveConfig();
         }
-        saveConfig();
     }
 
     public static void saveConfig() {

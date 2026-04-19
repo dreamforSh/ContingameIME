@@ -1,12 +1,12 @@
 package com.xinian.contingameime.mixin;
 
+import city.windmill.ingameime.client.jni.ExternalBaseIME;
 import com.xinian.contingameime.client.handler.ConfigHandler;
-import com.xinian.contingameime.client.handler.IMEHandler;
-import com.xinian.contingameime.client.handler.ScreenHandler;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -15,6 +15,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class MixinChatScreen {
     @Shadow
     protected EditBox input;
+
+    @Unique
+    private boolean contingameime$commandModeActive = false;
 
     @Inject(method = "moveInHistory", at = @At("RETURN"))
     private void onHistoryMove(int i, CallbackInfo ci) {
@@ -35,13 +38,19 @@ public class MixinChatScreen {
         checkCommandMode();
     }
 
+    /**
+     * Detect command format and directly toggle the native IME state,
+     * without interfering with the EditState state machine.
+     */
     private void checkCommandMode() {
         if (!ConfigHandler.isDisableIMEInCommandMode()) return;
-        if (input.getValue().startsWith("/")) {
-            IMEHandler.IMEState.COMPANION.onEditState(ScreenHandler.EditState.NULL_EDIT);
-        } else {
-            IMEHandler.IMEState.COMPANION.onEditState(ScreenHandler.EditState.EDIT_OPEN);
+        boolean isCommand = input.getValue().startsWith("/");
+        if (isCommand && !contingameime$commandModeActive) {
+            contingameime$commandModeActive = true;
+            ExternalBaseIME.INSTANCE.setState(false);
+        } else if (!isCommand && contingameime$commandModeActive) {
+            contingameime$commandModeActive = false;
+            ExternalBaseIME.INSTANCE.setState(true);
         }
     }
 }
-

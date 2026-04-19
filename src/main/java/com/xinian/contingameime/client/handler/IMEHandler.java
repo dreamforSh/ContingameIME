@@ -38,8 +38,6 @@ public class IMEHandler {
             }
         },
         TEMPORARY {
-            private boolean hasCommit = false;
-
             @Override
             public IMEState onAction(KeyHandler.CombinationKeyAction action) {
                 return switch (action) {
@@ -50,13 +48,13 @@ public class IMEHandler {
             }
             @Override
             public IMEState onCommit() {
-                hasCommit = true;
+                COMPANION.temporaryHasCommit = true;
                 return this;
             }
             @Override
             public IMEState onMouseMove() {
-                if (!OverlayScreen.INSTANCE.isComposing() && hasCommit) {
-                    hasCommit = false;
+                if (!OverlayScreen.INSTANCE.isComposing() && COMPANION.temporaryHasCommit) {
+                    COMPANION.temporaryHasCommit = false;
                     return DISABLED;
                 }
                 return this;
@@ -116,10 +114,18 @@ public class IMEHandler {
 
         public static class IMEStateCompanion implements ICommitListener, ScreenHandler.EditStateListener {
             private IMEState imeState = DISABLED;
+            // Tracks whether TEMPORARY state has received a commit (moved out of enum instance field)
+            private boolean temporaryHasCommit = false;
+
+            public IMEState getImeState() { return imeState; }
 
             private void setImeState(IMEState newState) {
                 if (imeState == newState) return;
                 LOGGER.trace("IMEState {} -> {}", imeState, newState);
+                // Reset temporary commit flag when leaving TEMPORARY state
+                if (imeState == TEMPORARY && newState != TEMPORARY) {
+                    temporaryHasCommit = false;
+                }
                 imeState = newState;
                 switch (imeState) {
                     case DISABLED -> ExternalBaseIME.INSTANCE.setState(false);
@@ -152,4 +158,3 @@ public class IMEHandler {
         }
     }
 }
-

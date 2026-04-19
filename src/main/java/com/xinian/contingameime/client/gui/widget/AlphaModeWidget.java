@@ -1,6 +1,7 @@
 package com.xinian.contingameime.client.gui.widget;
 
 import city.windmill.ingameime.client.jni.ExternalBaseIME;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.resources.language.I18n;
@@ -35,7 +36,7 @@ public class AlphaModeWidget extends Widget {
         if (hideDelay != null) hideDelay.cancel(false);
         active = value;
         if (value) {
-            hideDelay = SCHEDULER.schedule(() -> active = false, 3, TimeUnit.SECONDS);
+            hideDelay = SCHEDULER.schedule(() -> Minecraft.getInstance().execute(() -> active = false), 3, TimeUnit.SECONDS);
         }
     }
 

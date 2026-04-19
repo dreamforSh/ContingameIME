@@ -84,38 +84,39 @@ public class ExternalBaseIME {
     private native void nSetFullScreen(boolean fullscreen);
     // endregion
 
-    // region Callbacks from JNI (called by native code)
+    // region Callbacks from JNI (called by native code, potentially from IME thread)
     @SuppressWarnings("unused")
     private void onCandidateList(String[] candidates) {
-        OverlayScreen.INSTANCE.setCandidates(candidates);
+        Minecraft.getInstance().execute(() ->
+            OverlayScreen.INSTANCE.setCandidates(candidates));
     }
 
     @SuppressWarnings("unused")
     private void onComposition(String str, int caret, CompositionState compositionState) {
-        switch (compositionState) {
-            case Commit:
-                OverlayScreen.INSTANCE.setComposition(null, 0);
-                String result = commitListener.onCommit(str);
-                Minecraft.getInstance().execute(() -> {
+        Minecraft.getInstance().execute(() -> {
+            switch (compositionState) {
+                case Commit:
+                    OverlayScreen.INSTANCE.setComposition(null, 0);
+                    String result = commitListener.onCommit(str);
                     Screen screen = Minecraft.getInstance().screen;
                     if (screen != null) {
                         for (char ch : result.toCharArray()) {
                             screen.charTyped(ch, 0);
                         }
                     }
-                });
-                break;
-            case Start:
-            case End:
-            case Update:
-                if (str == null || str.isEmpty()) {
-                    OverlayScreen.INSTANCE.setComposition(null, 0);
-                } else {
-                    OverlayScreen.INSTANCE.setComposition(str, caret);
-                }
-                break;
-        }
-        OverlayScreen.INSTANCE.setShowAlphaMode(false);
+                    break;
+                case Start:
+                case End:
+                case Update:
+                    if (str == null || str.isEmpty()) {
+                        OverlayScreen.INSTANCE.setComposition(null, 0);
+                    } else {
+                        OverlayScreen.INSTANCE.setComposition(str, caret);
+                    }
+                    break;
+            }
+            OverlayScreen.INSTANCE.setShowAlphaMode(false);
+        });
     }
 
     @SuppressWarnings("unused")
@@ -127,7 +128,8 @@ public class ExternalBaseIME {
     private void onAlphaMode(boolean isAlphaMode) {
         LOGGER.trace("AlphaMode {} -> {}", alphaMode, isAlphaMode);
         alphaMode = isAlphaMode;
-        OverlayScreen.INSTANCE.setShowAlphaMode(true);
+        Minecraft.getInstance().execute(() ->
+            OverlayScreen.INSTANCE.setShowAlphaMode(true));
     }
     // endregion
 

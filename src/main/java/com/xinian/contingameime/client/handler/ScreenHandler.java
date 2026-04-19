@@ -15,10 +15,12 @@ public class ScreenHandler {
 
     public static void onScreenChange(Screen oldScreen, Screen newScreen) {
         LOGGER.trace("{} -> {}", oldScreen, newScreen);
-        screenState = screenState.handleScreenChange(oldScreen, newScreen);
+        // Don't re-assign: handleScreenChange already updates screenState via setScreenState
+        screenState.handleScreenChange(oldScreen, newScreen);
     }
 
     private static void setScreenState(ScreenState newState) {
+        if (screenState == newState) return;
         LOGGER.trace("ScreenState {} -> {}", screenState, newState);
         screenState = newState;
         IMEHandler.IMEState.COMPANION.onScreenState(screenState);
@@ -28,45 +30,47 @@ public class ScreenHandler {
     public enum ScreenState {
         NULL_SCREEN {
             @Override
-            ScreenState handleScreenChange(Screen oldScreen, Screen newScreen) {
+            void handleScreenChange(Screen oldScreen, Screen newScreen) {
                 if (newScreen != null) {
                     currentScreen = newScreen;
                     setScreenState(SCREEN_OPEN);
-                    return SCREEN_OPEN;
                 }
-                return this;
             }
         },
         SCREEN_OPEN {
             @Override
-            ScreenState handleScreenChange(Screen oldScreen, Screen newScreen) {
+            void handleScreenChange(Screen oldScreen, Screen newScreen) {
                 if (newScreen != null) {
+                    // Screen replaced: reset to NULL first, then open new
+                    currentScreen = null;
                     setScreenState(NULL_SCREEN);
                     currentScreen = newScreen;
                     setScreenState(SCREEN_OPEN);
-                    return SCREEN_OPEN;
+                } else {
+                    // Screen closed
+                    currentScreen = null;
+                    OverlayScreen.INSTANCE.setCaretPos(0, 0);
+                    setScreenState(NULL_SCREEN);
                 }
-                OverlayScreen.INSTANCE.setCaretPos(0, 0);
-                setScreenState(NULL_SCREEN);
-                return NULL_SCREEN;
             }
         },
         SCREEN_DUMMY_EDIT {
             @Override
-            ScreenState handleScreenChange(Screen oldScreen, Screen newScreen) {
+            void handleScreenChange(Screen oldScreen, Screen newScreen) {
                 if (newScreen != null) {
+                    currentScreen = null;
                     setScreenState(NULL_SCREEN);
                     currentScreen = newScreen;
                     setScreenState(SCREEN_OPEN);
-                    return SCREEN_OPEN;
+                } else {
+                    currentScreen = null;
+                    OverlayScreen.INSTANCE.setCaretPos(0, 0);
+                    setScreenState(NULL_SCREEN);
                 }
-                OverlayScreen.INSTANCE.setCaretPos(0, 0);
-                setScreenState(NULL_SCREEN);
-                return NULL_SCREEN;
             }
         };
 
-        abstract ScreenState handleScreenChange(Screen oldScreen, Screen newScreen);
+        abstract void handleScreenChange(Screen oldScreen, Screen newScreen);
     }
 
     // region EditState
