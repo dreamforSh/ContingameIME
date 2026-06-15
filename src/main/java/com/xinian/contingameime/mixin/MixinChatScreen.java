@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ChatScreen.class)
 public class MixinChatScreen {
@@ -22,7 +23,7 @@ public class MixinChatScreen {
 
     @Inject(method = "moveInHistory", at = @At("RETURN"))
     private void onHistoryMove(int i, CallbackInfo ci) {
-        checkCommandMode();
+        contingameIME$checkCommandMode();
     }
 
     /**
@@ -30,20 +31,20 @@ public class MixinChatScreen {
      * If the text starts with '/', disable IME; otherwise enable it.
      */
     @Inject(method = "keyPressed", at = @At("RETURN"))
-    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfo ci) {
-        checkCommandMode();
+    private void onKeyPressed(int p_95591_, int p_95592_, int p_95593_, CallbackInfoReturnable<Boolean> cir) {
+        contingameIME$checkCommandMode();
     }
 
     @Inject(method = "onEdited", at = @At("RETURN"))
     private void onEdited(String text, CallbackInfo ci) {
-        checkCommandMode();
+        contingameIME$checkCommandMode();
     }
 
     /**
      * Detect command format and directly toggle the native IME state,
      * without interfering with the EditState state machine.
      */
-    private void checkCommandMode() {
+    private void contingameIME$checkCommandMode() {
         if (!ConfigHandler.isDisableIMEInCommandMode()) return;
         boolean isCommand = input.getValue().startsWith("/");
         if (isCommand && !contingameime$commandModeActive) {
