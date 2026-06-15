@@ -17,7 +17,8 @@ public class TextFieldDetector {
 
     public static boolean isTextField(Class<?> c) {
         if (c == null) return false;
-        if (cache.containsKey(c)) return cache.get(c);
+        Boolean cached = cache.get(c);
+        if (cached != null) return cached;
         boolean result;
         if (TEXT_FIELD_PATTERN.matcher(c.getName()).matches()) {
             result = true;

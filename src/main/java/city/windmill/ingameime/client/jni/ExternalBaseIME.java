@@ -61,7 +61,7 @@ public class ExternalBaseIME {
     public void initialize() {
         if (initialized) return;
         try {
-            String arch = System.getProperty("os.arch");
+            String arch = System.getProperty("os.arch", "");
             String x86 = arch.contains("64") ? "" : "-x86";
             ResourceLocation resourceNative = ResourceLocation.fromNamespaceAndPath("contingameime", "natives/jni" + x86 + ".dll");
             var resource = Minecraft.getInstance().getResourceManager().getResource(resourceNative).orElseThrow();
@@ -99,7 +99,7 @@ public class ExternalBaseIME {
                     OverlayScreen.INSTANCE.setComposition(null, 0);
                     String result = commitListener.onCommit(str);
                     Screen screen = Minecraft.getInstance().screen;
-                    if (screen != null) {
+                    if (screen != null && result != null) {
                         for (char ch : result.toCharArray()) {
                             screen.charTyped(ch, 0);
                         }

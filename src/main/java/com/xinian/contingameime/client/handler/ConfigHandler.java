@@ -7,6 +7,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
+import com.xinian.contingameime.client.gui.OverlayScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
@@ -25,10 +26,17 @@ public class ConfigHandler {
 
     private static boolean disableIMEInCommandMode = false;
     private static boolean autoReplaceSlashChar = false;
+    private static boolean showIndicator = true;
     private static char[] slashCharArray = {'\u3001'};
 
     public static boolean isDisableIMEInCommandMode() { return disableIMEInCommandMode; }
     public static boolean isAutoReplaceSlashChar() { return autoReplaceSlashChar; }
+    public static boolean isShowIndicator() { return showIndicator; }
+
+    public static void setShowIndicator(boolean value) {
+        showIndicator = value;
+        OverlayScreen.INSTANCE.setIndicatorEnabled(value);
+    }
 
     public static void setDisableIMEInCommandMode(boolean value) {
         if (disableIMEInCommandMode == value) return;
@@ -86,6 +94,7 @@ public class ConfigHandler {
     public static void loadDefaultConfig() {
         setDisableIMEInCommandMode(true);
         setAutoReplaceSlashChar(true);
+        setShowIndicator(true);
         slashCharArray = new char[]{'\u3001'};
     }
 
@@ -104,6 +113,9 @@ public class ConfigHandler {
                 }
                 if (json.has("autoReplaceSlashChar")) {
                     setAutoReplaceSlashChar(json.get("autoReplaceSlashChar").getAsBoolean());
+                }
+                if (json.has("showIndicator")) {
+                    setShowIndicator(json.get("showIndicator").getAsBoolean());
                 }
                 if (json.has("slashChars")) {
                     JsonArray arr = json.get("slashChars").getAsJsonArray();
@@ -130,6 +142,7 @@ public class ConfigHandler {
             JsonObject json = new JsonObject();
             json.addProperty("disableIMEInCommandMode", disableIMEInCommandMode);
             json.addProperty("autoReplaceSlashChar", autoReplaceSlashChar);
+            json.addProperty("showIndicator", showIndicator);
             JsonArray arr = new JsonArray();
             for (char c : slashCharArray) arr.add(String.valueOf(c));
             json.add("slashChars", arr);

@@ -16,11 +16,22 @@ public class OverlayScreen implements Renderable {
     private CompositionWidget compositionWidget;
     private CandidateListWidget candidateListWidget;
     private boolean initialized = false;
+    private boolean indicatorEnabled = true;
 
     private int caretX = 0;
     private int caretY = 0;
 
     private OverlayScreen() {}
+
+    /**
+     * Enable or disable the IME mode indicator (the "A" / "ENG" overlay badge).
+     */
+    public void setIndicatorEnabled(boolean value) {
+        indicatorEnabled = value;
+        if (!value && initialized) {
+            alphaModeWidget.setActive(false);
+        }
+    }
 
     /**
      * Lazily initialize widgets - must be called on the render thread after Minecraft is ready.
@@ -42,12 +53,18 @@ public class OverlayScreen implements Renderable {
         ensureInitialized();
         if (!initialized) return;
         adjustCompositionPos();
+        // Reposition all dependent widgets so they follow the caret while active.
         adjustPosByComposition(alphaModeWidget);
+        adjustPosByComposition(candidateListWidget);
     }
 
     public void setShowAlphaMode(boolean value) {
         ensureInitialized();
         if (!initialized) return;
+        if (!indicatorEnabled) {
+            alphaModeWidget.setActive(false);
+            return;
+        }
         alphaModeWidget.setActive(value);
         adjustPosByComposition(alphaModeWidget);
     }
