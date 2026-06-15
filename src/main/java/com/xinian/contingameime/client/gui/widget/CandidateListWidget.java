@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 
 public class CandidateListWidget extends Widget {
     private String[] candidates = null;
+    private boolean vertical = false;
     private final CandidateEntry drawItem;
 
     public CandidateListWidget(Font font) {
@@ -16,23 +17,43 @@ public class CandidateListWidget extends Widget {
 
     public void setCandidates(String[] candidates) { this.candidates = candidates; }
 
+    public void setVertical(boolean vertical) { this.vertical = vertical; }
+
+    @Override
+    public void setColors(int textColor, int backgroundColor) {
+        super.setColors(textColor, backgroundColor);
+        drawItem.setColors(textColor, backgroundColor);
+    }
+
     @Override
     public boolean isActive() { return candidates != null && candidates.length > 0; }
 
     @Override
     public int getWidth() {
-        int w = super.getWidth();
-        if (candidates != null) {
+        if (candidates == null) return super.getWidth();
+        if (vertical) {
+            int max = 0;
             for (String s : candidates) {
                 drawItem.setText(s);
-                w += drawItem.getWidth();
+                max = Math.max(max, drawItem.getWidth());
             }
+            return super.getWidth() + max;
+        }
+        int w = super.getWidth();
+        for (String s : candidates) {
+            drawItem.setText(s);
+            w += drawItem.getWidth();
         }
         return w;
     }
 
     @Override
-    public int getHeight() { return super.getHeight() + font.lineHeight; }
+    public int getHeight() {
+        if (vertical && candidates != null) {
+            return super.getHeight() + candidates.length * font.lineHeight;
+        }
+        return super.getHeight() + font.lineHeight;
+    }
 
     @Override
     public int getPaddingX() { return 1; }
@@ -52,7 +73,11 @@ public class CandidateListWidget extends Widget {
             drawItem.setIndex(index);
             drawItem.setText(str);
             drawItem.draw(guiGraphics, dx, dy, mouseX, mouseY, delta);
-            dx += drawItem.getWidth();
+            if (vertical) {
+                dy += font.lineHeight;
+            } else {
+                dx += drawItem.getWidth();
+            }
             index++;
         }
     }
@@ -95,4 +120,3 @@ public class CandidateListWidget extends Widget {
         }
     }
 }
-

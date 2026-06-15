@@ -118,6 +118,41 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
 }
 
+// region Native (JNI) compilation - OPT-IN via -PbuildNatives=true (see docs/NATIVE_BUILD.md).
+// Default false so a normal build ships the committed prebuilt DLLs and needs no C++ toolchain.
+def buildNatives = providers.gradleProperty('buildNatives').map { it.toBoolean() }.getOrElse(false)
+def cppDir = layout.projectDirectory.dir('src/main/java/cpp').asFile
+def cmakeBuildDir = layout.buildDirectory.dir('cmake').get().asFile
+def nativesDir = layout.projectDirectory.dir("src/main/resources/assets/${mod_id}/natives").asFile
+def gradleJavaHome = providers.systemProperty('java.home').get()
+
+def cmakeConfigure = tasks.register('cmakeConfigure', Exec) {
+    onlyIf { buildNatives }
+    doFirst {
+        nativesDir.mkdirs()
+        cmakeBuildDir.mkdirs()
+    }
+    workingDir cmakeBuildDir
+    commandLine 'cmake', '-G', 'MinGW Makefiles',
+            '-DCMAKE_BUILD_TYPE=Release',
+            "-DRES_NATIVES_DIR=${nativesDir.absolutePath}",
+            "-DJAVA_HOME=${gradleJavaHome}",
+            cppDir.absolutePath
+    inputs.dir(cppDir)
+    outputs.dir(cmakeBuildDir)
+}
+
+def cmakeAssemble = tasks.register('cmakeAssemble', Exec) {
+    onlyIf { buildNatives }
+    dependsOn cmakeConfigure
+    workingDir cmakeBuildDir
+    commandLine 'cmake', '--build', '.', '--config', 'Release', '--target', 'install'
+    outputs.dir(nativesDir)
+}
+
+tasks.named('processResources') { dependsOn cmakeAssemble }
+// endregion
+
 // This block of code expands all declared replace properties in the specified resource targets.
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

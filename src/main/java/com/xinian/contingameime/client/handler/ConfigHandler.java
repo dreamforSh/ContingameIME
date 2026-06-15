@@ -26,18 +26,42 @@ import java.util.List;
 public class ConfigHandler {
     private static final Logger LOGGER = LogManager.getFormatterLogger("ContingameIME|Config");
 
+    private static final int DEFAULT_TEXT_COLOR = 0xFF000000;
+    private static final int DEFAULT_BACKGROUND_COLOR = 0xEBEBEBEB;
+
     private static boolean disableIMEInCommandMode = false;
     private static boolean autoReplaceSlashChar = false;
     private static boolean showIndicator = true;
+    private static boolean verticalCandidates = false;
+    private static int textColor = DEFAULT_TEXT_COLOR;
+    private static int backgroundColor = DEFAULT_BACKGROUND_COLOR;
     private static char[] slashCharArray = {'\u3001'};
 
     public static boolean isDisableIMEInCommandMode() { return disableIMEInCommandMode; }
     public static boolean isAutoReplaceSlashChar() { return autoReplaceSlashChar; }
     public static boolean isShowIndicator() { return showIndicator; }
+    public static boolean isVerticalCandidates() { return verticalCandidates; }
+    public static int getTextColor() { return textColor; }
+    public static int getBackgroundColor() { return backgroundColor; }
 
     public static void setShowIndicator(boolean value) {
         showIndicator = value;
         OverlayScreen.INSTANCE.setIndicatorEnabled(value);
+    }
+
+    public static void setVerticalCandidates(boolean value) {
+        verticalCandidates = value;
+        OverlayScreen.INSTANCE.setVerticalCandidates(value);
+    }
+
+    public static void setTextColor(int value) {
+        textColor = value;
+        OverlayScreen.INSTANCE.applyTheme(textColor, backgroundColor);
+    }
+
+    public static void setBackgroundColor(int value) {
+        backgroundColor = value;
+        OverlayScreen.INSTANCE.applyTheme(textColor, backgroundColor);
     }
 
     public static void setDisableIMEInCommandMode(boolean value) {
@@ -97,6 +121,9 @@ public class ConfigHandler {
         setDisableIMEInCommandMode(true);
         setAutoReplaceSlashChar(true);
         setShowIndicator(true);
+        setVerticalCandidates(false);
+        setTextColor(DEFAULT_TEXT_COLOR);
+        setBackgroundColor(DEFAULT_BACKGROUND_COLOR);
         slashCharArray = new char[]{'\u3001'};
     }
 
@@ -122,6 +149,15 @@ public class ConfigHandler {
                 } else missingKey = true;
                 if (json.has("showIndicator")) {
                     setShowIndicator(json.get("showIndicator").getAsBoolean());
+                } else missingKey = true;
+                if (json.has("verticalCandidates")) {
+                    setVerticalCandidates(json.get("verticalCandidates").getAsBoolean());
+                } else missingKey = true;
+                if (json.has("textColor")) {
+                    setTextColor(parseColor(json.get("textColor").getAsString(), DEFAULT_TEXT_COLOR));
+                } else missingKey = true;
+                if (json.has("backgroundColor")) {
+                    setBackgroundColor(parseColor(json.get("backgroundColor").getAsString(), DEFAULT_BACKGROUND_COLOR));
                 } else missingKey = true;
                 if (json.has("slashChars")) {
                     slashCharArray = parseSlashChars(json.get("slashChars").getAsJsonArray());
@@ -157,6 +193,17 @@ public class ConfigHandler {
         return parsed;
     }
 
+    /** Parse an ARGB color from "#AARRGGBB", "0xAARRGGBB" or a decimal string. */
+    private static int parseColor(String s, int fallback) {
+        try {
+            String hex = s.startsWith("#") ? "0x" + s.substring(1) : s;
+            return (int) Long.decode(hex).longValue();
+        } catch (Exception e) {
+            LOGGER.warn("Invalid color '{}', using default", s);
+            return fallback;
+        }
+    }
+
     public static void saveConfig() {
         try {
             Path config = getConfigPath();
@@ -165,6 +212,9 @@ public class ConfigHandler {
             json.addProperty("disableIMEInCommandMode", disableIMEInCommandMode);
             json.addProperty("autoReplaceSlashChar", autoReplaceSlashChar);
             json.addProperty("showIndicator", showIndicator);
+            json.addProperty("verticalCandidates", verticalCandidates);
+            json.addProperty("textColor", String.format("#%08X", textColor));
+            json.addProperty("backgroundColor", String.format("#%08X", backgroundColor));
             JsonArray arr = new JsonArray();
             for (char c : slashCharArray) arr.add(String.valueOf(c));
             json.add("slashChars", arr);

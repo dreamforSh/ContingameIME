@@ -44,6 +44,12 @@ public class IMEConfigScreen extends Screen {
                 .create(left, y, ROW_WIDTH, ROW_HEIGHT,
                         Component.translatable("config.contingameime.showIndicator"),
                         (button, value) -> ConfigHandler.setShowIndicator(value)));
+        y += 24;
+
+        addRenderableWidget(CycleButton.onOffBuilder(ConfigHandler.isVerticalCandidates())
+                .create(left, y, ROW_WIDTH, ROW_HEIGHT,
+                        Component.translatable("config.contingameime.verticalCandidates"),
+                        (button, value) -> ConfigHandler.setVerticalCandidates(value)));
 
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> this.onClose())
                 .bounds(this.width / 2 - 100, this.height - 28, 200, ROW_HEIGHT)

@@ -7,6 +7,7 @@
   "config.contingameime.disableIMEInCommandMode": "命令模式（/）下停用輸入法",
   "config.contingameime.autoReplaceSlashChar": "自動將開頭的輸入法頓號替換為 /",
   "config.contingameime.showIndicator": "顯示 A/中 狀態指示器",
+  "config.contingameime.verticalCandidates": "候選詞縱向排列",
   "message.contingameime.unsupported_platform": "[ContingameIME] 遊戲內輸入法僅支援 Windows。",
   "message.contingameime.native_failed": "[ContingameIME] 原生輸入法庫載入失敗，遊戲內輸入法已停用（詳見日誌）。"
 }

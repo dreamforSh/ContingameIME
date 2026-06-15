@@ -41,11 +41,11 @@ public class ScreenHandler {
             @Override
             void handleScreenChange(Screen oldScreen, Screen newScreen) {
                 if (newScreen != null) {
-                    // Screen replaced: reset to NULL first, then open new
-                    currentScreen = null;
-                    setScreenState(NULL_SCREEN);
+                    // Screen replaced: stay SCREEN_OPEN and just swap the reference. The old
+                    // screen's removed() clears its edit (turning the IME off) and the new
+                    // screen's widgets re-establish edit state, so routing through NULL_SCREEN
+                    // here only adds a redundant IME off/on flicker and tears down the overlay.
                     currentScreen = newScreen;
-                    setScreenState(SCREEN_OPEN);
                 } else {
                     // Screen closed
                     currentScreen = null;

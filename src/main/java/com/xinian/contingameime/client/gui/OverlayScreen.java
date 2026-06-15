@@ -18,6 +18,11 @@ public class OverlayScreen implements Renderable {
     private volatile boolean initialized = false;
     private boolean indicatorEnabled = true;
 
+    // Theme / layout, applied to widgets on creation and updated live via the config.
+    private int themeTextColor = 0xFF000000;
+    private int themeBackgroundColor = 0xEBEBEBEB;
+    private boolean verticalCandidates = false;
+
     private int caretX = 0;
     private int caretY = 0;
 
@@ -38,6 +43,27 @@ public class OverlayScreen implements Renderable {
     }
 
     /**
+     * Set overlay colors (ARGB). Applied immediately when widgets already exist.
+     */
+    public void applyTheme(int textColor, int backgroundColor) {
+        themeTextColor = textColor;
+        themeBackgroundColor = backgroundColor;
+        if (initialized) {
+            alphaModeWidget.setColors(textColor, backgroundColor);
+            compositionWidget.setColors(textColor, backgroundColor);
+            candidateListWidget.setColors(textColor, backgroundColor);
+        }
+    }
+
+    /**
+     * Switch the candidate list between horizontal (default) and vertical layout.
+     */
+    public void setVerticalCandidates(boolean vertical) {
+        verticalCandidates = vertical;
+        if (initialized) candidateListWidget.setVertical(vertical);
+    }
+
+    /**
      * Lazily initialize widgets - must be called on the render thread after Minecraft is ready.
      */
     private void ensureInitialized() {
@@ -48,6 +74,9 @@ public class OverlayScreen implements Renderable {
         compositionWidget = new CompositionWidget(mc.font);
         candidateListWidget = new CandidateListWidget(mc.font);
         initialized = true;
+        // Apply any theme/layout configured before the widgets existed.
+        applyTheme(themeTextColor, themeBackgroundColor);
+        candidateListWidget.setVertical(verticalCandidates);
     }
 
     public void setCaretPos(int x, int y) {

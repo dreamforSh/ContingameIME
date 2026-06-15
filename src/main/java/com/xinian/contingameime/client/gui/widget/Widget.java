@@ -15,6 +15,11 @@ public abstract class Widget implements Renderable {
         this.font = font;
     }
 
+    public void setColors(int textColor, int backgroundColor) {
+        this.textColor = textColor;
+        this.backgroundColor = backgroundColor;
+    }
+
     public boolean isActive() { return false; }
     public int getWidth() { return getPaddingX() * 2; }
     public int getHeight() { return getPaddingY() * 2; }

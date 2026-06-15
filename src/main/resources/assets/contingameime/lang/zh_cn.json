@@ -7,6 +7,7 @@
   "config.contingameime.disableIMEInCommandMode": "命令模式（/）下禁用输入法",
   "config.contingameime.autoReplaceSlashChar": "自动将开头的输入法顿号替换为 /",
   "config.contingameime.showIndicator": "显示 A/中 状态指示器",
+  "config.contingameime.verticalCandidates": "候选词竖向排列",
   "message.contingameime.unsupported_platform": "[ContingameIME] 游戏内输入法仅支持 Windows。",
   "message.contingameime.native_failed": "[ContingameIME] 原生输入法库加载失败，游戏内输入法已禁用（详见日志）。"
 }
