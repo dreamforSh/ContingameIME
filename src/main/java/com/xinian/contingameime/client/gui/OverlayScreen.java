@@ -15,11 +15,15 @@ public class OverlayScreen implements Renderable {
     private AlphaModeWidget alphaModeWidget;
     private CompositionWidget compositionWidget;
     private CandidateListWidget candidateListWidget;
-    private boolean initialized = false;
+    private volatile boolean initialized = false;
     private boolean indicatorEnabled = true;
 
     private int caretX = 0;
     private int caretY = 0;
+
+    // Snapshot of the composition rectangle (scaled, native pixels) computed on the main thread.
+    // Read by the native IME thread via getCompositionExt() without touching widget objects.
+    private volatile int[] cachedCompositionExt = {0, 0, 0, 0};
 
     private OverlayScreen() {}
 
@@ -85,15 +89,9 @@ public class OverlayScreen implements Renderable {
     }
 
     public int[] getCompositionExt() {
-        ensureInitialized();
-        if (!initialized) return new int[]{0, 0, 0, 0};
-        double scale = Minecraft.getInstance().getWindow().getGuiScale();
-        return new int[]{
-                (int) (compositionWidget.getOffsetX() * scale),
-                (int) (compositionWidget.getOffsetY() * scale),
-                (int) ((compositionWidget.getOffsetX() + compositionWidget.getWidth()) * scale),
-                (int) ((compositionWidget.getOffsetY() + compositionWidget.getHeight()) * scale)
-        };
+        // Invoked synchronously from the native IME thread: return the snapshot computed on
+        // the main thread instead of touching widget objects or the window off-thread.
+        return cachedCompositionExt;
     }
 
     public boolean isComposing() {
@@ -119,10 +117,30 @@ public class OverlayScreen implements Renderable {
         var window = Minecraft.getInstance().getWindow();
         int maxX = window.getGuiScaledWidth() - compositionWidget.getWidth();
         int maxY = window.getGuiScaledHeight() - compositionWidget.getHeight() + compositionWidget.getPaddingY();
+        // Clamp both bounds so long composition strings / top-edge carets can't push the
+        // overlay off the left or top edge.
         compositionWidget.moveTo(
-                Math.min(caretX, maxX),
-                Math.min(caretY - compositionWidget.getPaddingY(), maxY)
+                Math.max(0, Math.min(caretX, maxX)),
+                Math.max(0, Math.min(caretY - compositionWidget.getPaddingY(), maxY))
         );
+        updateCompositionExt(window.getGuiScale());
+    }
+
+    /**
+     * Recompute the scaled composition rectangle on the main thread and cache it for the
+     * native IME thread to read via {@link #getCompositionExt()}.
+     */
+    private void updateCompositionExt(double scale) {
+        int ox = compositionWidget.getOffsetX();
+        int oy = compositionWidget.getOffsetY();
+        int w = compositionWidget.getWidth();
+        int h = compositionWidget.getHeight();
+        cachedCompositionExt = new int[]{
+                (int) (ox * scale),
+                (int) (oy * scale),
+                (int) ((ox + w) * scale),
+                (int) ((oy + h) * scale)
+        };
     }
 
     private void adjustPosByComposition(Widget widget) {

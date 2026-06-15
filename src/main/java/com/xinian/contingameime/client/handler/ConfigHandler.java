@@ -20,6 +20,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ConfigHandler {
     private static final Logger LOGGER = LogManager.getFormatterLogger("ContingameIME|Config");
@@ -106,33 +108,53 @@ public class ConfigHandler {
                 saveConfig();
                 return;
             }
+            // Seed documented defaults first so keys absent from a partial/older file take the
+            // intended value instead of the bare static initializer, then overlay present keys.
+            loadDefaultConfig();
+            boolean missingKey = false;
             try (JsonReader reader = new JsonReader(new FileReader(config.toFile()))) {
                 JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
                 if (json.has("disableIMEInCommandMode")) {
                     setDisableIMEInCommandMode(json.get("disableIMEInCommandMode").getAsBoolean());
-                }
+                } else missingKey = true;
                 if (json.has("autoReplaceSlashChar")) {
                     setAutoReplaceSlashChar(json.get("autoReplaceSlashChar").getAsBoolean());
-                }
+                } else missingKey = true;
                 if (json.has("showIndicator")) {
                     setShowIndicator(json.get("showIndicator").getAsBoolean());
-                }
+                } else missingKey = true;
                 if (json.has("slashChars")) {
-                    JsonArray arr = json.get("slashChars").getAsJsonArray();
-                    char[] chars = new char[arr.size()];
-                    for (int i = 0; i < arr.size(); i++) {
-                        String s = arr.get(i).getAsString();
-                        chars[i] = s.isEmpty() ? ' ' : s.charAt(0);
-                    }
-                    slashCharArray = chars;
-                }
+                    slashCharArray = parseSlashChars(json.get("slashChars").getAsJsonArray());
+                } else missingKey = true;
             }
+            // Backfill any keys the file was missing so the on-disk config stays complete.
+            if (missingKey) saveConfig();
         } catch (Exception e) {
             LOGGER.warn("Failed to read config:", e);
             LOGGER.warn("Loading Default config");
             loadDefaultConfig();
             saveConfig();
         }
+    }
+
+    private static char[] parseSlashChars(JsonArray arr) {
+        List<Character> chars = new ArrayList<>();
+        for (int i = 0; i < arr.size(); i++) {
+            String s = arr.get(i).getAsString();
+            if (s.isEmpty()) {
+                LOGGER.warn("Ignoring empty slashChars entry at index {}", i);
+                continue;
+            }
+            if (s.length() > 1) {
+                LOGGER.warn("slashChars entry '{}' has multiple characters; using the first only", s);
+            }
+            chars.add(s.charAt(0));
+        }
+        // Keep the current (default) trigger set if the file provided no usable entries.
+        if (chars.isEmpty()) return slashCharArray;
+        char[] parsed = new char[chars.size()];
+        for (int i = 0; i < parsed.length; i++) parsed[i] = chars.get(i);
+        return parsed;
     }
 
     public static void saveConfig() {

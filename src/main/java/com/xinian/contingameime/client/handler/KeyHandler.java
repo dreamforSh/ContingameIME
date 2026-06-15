@@ -34,7 +34,7 @@ public class KeyHandler {
     public static boolean onKeyDown(int keyCode, int scanCode, int modifier) {
         if (keyCode == TOGGLE_KEY.getKey().getValue()) {
             keyState = keyState.handleKeyDown();
-            return true;
+            return shouldConsume();
         }
         return false;
     }
@@ -42,9 +42,18 @@ public class KeyHandler {
     public static boolean onKeyUp(int keyCode, int scanCode, int modifier) {
         if (keyCode == TOGGLE_KEY.getKey().getValue()) {
             keyState = keyState.handleKeyUp();
-            return true;
+            return shouldConsume();
         }
         return false;
+    }
+
+    /**
+     * Don't swallow the toggle key while a text field is focused, so a default of Home still
+     * performs its in-field action (move cursor to line start) instead of being eaten. The IME
+     * gesture is still processed; only event cancellation is suppressed.
+     */
+    private static boolean shouldConsume() {
+        return ScreenHandler.EditState.getEditState() != ScreenHandler.EditState.EDIT_OPEN;
     }
 
     private enum KeyState {
@@ -58,9 +67,12 @@ public class KeyHandler {
                         Minecraft.getInstance().execute(() -> onKeyAction(KeyAction.KEY_LONG_PRESS));
                     }
                 }, 2000, 2000, TimeUnit.MILLISECONDS);
-                delayLongPress = SCHEDULER.schedule(() -> {
-                    keyState = COUNTING_LONG_PRESS;
-                }, 500, TimeUnit.MILLISECONDS);
+                delayLongPress = SCHEDULER.schedule(() -> Minecraft.getInstance().execute(() -> {
+                    // Arm long-press only if the key is still held. Marshalling to the main
+                    // thread (and the guard) prevents a cancelled-but-already-running task from
+                    // wedging the machine in COUNTING_LONG_PRESS after the key was released.
+                    if (keyState == PENDING_KEY_UP) keyState = COUNTING_LONG_PRESS;
+                }), 500, TimeUnit.MILLISECONDS);
                 return PENDING_KEY_UP;
             }
             @Override KeyState handleKeyUp() { return this; }
@@ -100,11 +112,15 @@ public class KeyHandler {
             @Override CombinationKeyState handleAction(KeyAction action) {
                 return switch (action) {
                     case KEY_CLICKED -> {
-                        delayDoubleClick = SCHEDULER.schedule(() -> {
-                            combinationKeyState = PENDING_CLICK;
-                            Minecraft.getInstance().execute(() ->
-                                IMEHandler.IMEState.COMPANION.onAction(CombinationKeyAction.CLICKED));
-                        }, 300, TimeUnit.MILLISECONDS);
+                        delayDoubleClick = SCHEDULER.schedule(() -> Minecraft.getInstance().execute(() -> {
+                            // Single-click timeout fires on the main thread; ignore it if a
+                            // second click already consumed this window (avoids a stray CLICKED
+                            // racing a DOUBLE_CLICKED).
+                            if (combinationKeyState == PENDING_DOUBLE_CLICK) {
+                                combinationKeyState = PENDING_CLICK;
+                                IMEHandler.IMEState.COMPANION.onAction(CombinationKeyAction.CLICKED);
+                            }
+                        }), 300, TimeUnit.MILLISECONDS);
                         yield PENDING_DOUBLE_CLICK;
                     }
                     case KEY_LONG_PRESS -> {

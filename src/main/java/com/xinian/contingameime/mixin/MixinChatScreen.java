@@ -2,6 +2,7 @@ package com.xinian.contingameime.mixin;
 
 import city.windmill.ingameime.client.jni.ExternalBaseIME;
 import com.xinian.contingameime.client.handler.ConfigHandler;
+import com.xinian.contingameime.client.handler.IMEHandler;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -50,7 +51,11 @@ public class MixinChatScreen {
             ExternalBaseIME.INSTANCE.setState(false);
         } else if (!isCommand && contingameime$commandModeActive) {
             contingameime$commandModeActive = false;
-            ExternalBaseIME.INSTANCE.setState(true);
+            // Restore the IME state the user actually wants (e.g. keep it off if they
+            // disabled it via the hotkey) instead of unconditionally forcing it on.
+            boolean enabled =
+                    IMEHandler.IMEState.COMPANION.getImeState() != IMEHandler.IMEState.DISABLED;
+            ExternalBaseIME.INSTANCE.setState(enabled);
         }
     }
 }

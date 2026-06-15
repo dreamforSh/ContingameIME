@@ -24,11 +24,14 @@ abstract class MixinEditBox extends AbstractWidget {
         super(i, j, k, l, component);
     }
 
-    @Inject(method = "setFocused", at = @At("HEAD"))
+    @Inject(method = "setFocused", at = @At("RETURN"))
     private void onSelected(boolean selected, CallbackInfo info) {
         int caretX = bordered ? this.getX() + 4 : this.getX();
         int caretY = bordered ? this.getY() + (this.height - 8) / 2 : this.getY();
-        if (selected)
+        // Inject at RETURN and branch on the real focus state: EditBox.setFocused(false)
+        // is a no-op when canLoseFocus is false (e.g. the chat input), so firing on the
+        // requested value would emit a spurious editClose while the box is still focused.
+        if (this.isFocused())
             ClientScreenEventHooks.fireEditOpen(this, caretX, caretY);
         else
             ClientScreenEventHooks.fireEditClose(this);

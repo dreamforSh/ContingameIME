@@ -2,12 +2,17 @@ package city.windmill.ingameime.client.jni;
 
 import com.xinian.contingameime.client.gui.OverlayScreen;
 import com.xinian.contingameime.client.handler.IMEHandler;
+import com.xinian.contingameime.client.handler.ScreenHandler;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.resources.ResourceLocation;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFWNativeWin32;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * JNI bridge to the native IME library.
@@ -60,20 +65,45 @@ public class ExternalBaseIME {
 
     public void initialize() {
         if (initialized) return;
+        // catch Throwable: a failed native link surfaces as UnsatisfiedLinkError (an Error,
+        // not an Exception), which must not escape and abort client setup.
         try {
             String arch = System.getProperty("os.arch", "");
             String x86 = arch.contains("64") ? "" : "-x86";
-            ResourceLocation resourceNative = ResourceLocation.fromNamespaceAndPath("contingameime", "natives/jni" + x86 + ".dll");
+            String dll = "jni" + x86 + ".dll";
+            ResourceLocation resourceNative =
+                    ResourceLocation.fromNamespaceAndPath("contingameime", "natives/" + dll);
             var resource = Minecraft.getInstance().getResourceManager().getResource(resourceNative).orElseThrow();
-            NativeLoader.load(resource);
+            Path target = Paths.get(Minecraft.getInstance().gameDirectory.toString(),
+                    "contingameime", "natives", dll);
+            if (!NativeLoader.load(resource, target)) {
+                LOGGER.error("Native IME library failed to load; in-game IME disabled.");
+                return;
+            }
             LOGGER.debug("Initializing window");
             long hwnd = GLFWNativeWin32.glfwGetWin32Window(Minecraft.getInstance().getWindow().getWindow());
             nInitialize(hwnd);
             initialized = true;
             LOGGER.info("Native IME initialized successfully");
+            Runtime.getRuntime().addShutdownHook(new Thread(this::uninitialize, "ContingameIME-Shutdown"));
             setFullScreen(Minecraft.getInstance().getWindow().isFullscreen());
-        } catch (Exception ex) {
+        } catch (Throwable ex) {
             LOGGER.error("Failed in initializing ExternalBaseIME:", ex);
+        }
+    }
+
+    /**
+     * Release the native IME context and JNI global references. Idempotent and safe to call
+     * from a shutdown hook.
+     */
+    public void uninitialize() {
+        if (!initialized) return;
+        initialized = false;
+        try {
+            nUninitialize();
+            LOGGER.info("Native IME uninitialized");
+        } catch (Throwable t) {
+            LOGGER.error("Failed to uninitialize native IME:", t);
         }
     }
 
@@ -98,10 +128,19 @@ public class ExternalBaseIME {
                 case Commit:
                     OverlayScreen.INSTANCE.setComposition(null, 0);
                     String result = commitListener.onCommit(str);
-                    Screen screen = Minecraft.getInstance().screen;
-                    if (screen != null && result != null) {
-                        for (char ch : result.toCharArray()) {
-                            screen.charTyped(ch, 0);
+                    if (result != null && !result.isEmpty()) {
+                        // Prefer EditBox.insertText so supplementary-plane characters (emoji,
+                        // CJK Ext-B) aren't corrupted by feeding surrogate halves to charTyped.
+                        Object edit = ScreenHandler.EditState.getCurrentEdit();
+                        if (edit instanceof EditBox editBox) {
+                            editBox.insertText(result);
+                        } else {
+                            Screen screen = Minecraft.getInstance().screen;
+                            if (screen != null) {
+                                for (char ch : result.toCharArray()) {
+                                    screen.charTyped(ch, 0);
+                                }
+                            }
                         }
                     }
                     break;

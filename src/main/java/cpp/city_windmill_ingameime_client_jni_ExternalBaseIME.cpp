@@ -5,7 +5,7 @@
 #define GLOBAL(x) env->NewGlobalRef(x)
 #define FIELD(clazz, fieldName, type) env->GetObjectField(clazz, env->GetFieldID(clazz, fieldName, type))
 #define STATICFIELD(clazz, fieldName, type) env->GetStaticObjectField(clazz, env->GetStaticFieldID(clazz, fieldName, type))
-#define FREEGLOBAL(x) if(x){ env->DeleteGlobalRef(x); x = NULL; }
+#define FREEGLOBAL(x) if(env && x){ env->DeleteGlobalRef(x); x = NULL; }
 
 IngameIME::BaseIME* api = new IngameIME::IMM();
 
@@ -37,7 +37,10 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved) {
 
 JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* vm, void* reserved)
 {
-	Java_city_windmill_ingameime_client_jni_ExternalBaseIME_nUninitialize(NULL, NULL);
+	JNIEnv* env = NULL;
+	if (vm != NULL && vm->GetEnv((void**)&env, JNI_VERSION_1_8) == JNI_OK) {
+		Java_city_windmill_ingameime_client_jni_ExternalBaseIME_nUninitialize(env, NULL);
+	}
 }
 
 template<typename F>
@@ -51,12 +54,16 @@ HRESULT call_with_env(F const& pf) {
 		status = g_vm->AttachCurrentThread((void**)&env, NULL);
 		if (status == JNI_OK) {
 			pf(env);
+			// Never detach (or return) with a pending Java exception: it would corrupt the
+			// next JNI call on this thread and is undefined behaviour across VMs.
+			if (env->ExceptionCheck()) env->ExceptionClear();
 			g_vm->DetachCurrentThread();
 			return S_OK;
 		}
 		return status;
 	}
 	pf(env);
+	if (env->ExceptionCheck()) env->ExceptionClear();
 	return S_OK;
 }
 
@@ -79,7 +86,14 @@ void CALLBACK onCandidateList(libtf::CandidateList* list) {
 void CALLBACK onGetTextExt(PRECT prect) {
 	call_with_env([prect](JNIEnv* env) {
 		jintArray jrect = (jintArray)env->CallObjectMethod(go_ExternalBaseIME, gmtd_onGetCompExt);
-		env->GetIntArrayRegion(jrect, 0, 4, (jint*)prect);
+		// A pending exception or a null/short return must not reach GetIntArrayRegion, which
+		// would otherwise read from a null array / leave the JNI thread in a corrupt state.
+		if (env->ExceptionCheck()) { env->ExceptionClear(); return; }
+		if (jrect == NULL) return;
+		if (env->GetArrayLength(jrect) >= 4) {
+			env->GetIntArrayRegion(jrect, 0, 4, (jint*)prect);
+		}
+		env->DeleteLocalRef(jrect);
 	});
 }
 
@@ -145,7 +159,8 @@ JNIEXPORT void JNICALL Java_city_windmill_ingameime_client_jni_ExternalBaseIME_n
 
 JNIEXPORT void JNICALL Java_city_windmill_ingameime_client_jni_ExternalBaseIME_nUninitialize(JNIEnv* env, jobject)
 {
-	api->Uninitialize();
+	// Guard against a double teardown (Java shutdown hook + JNI_OnUnload).
+	if (api != NULL && api->m_initialized) api->Uninitialize();
 	FREEGLOBAL(go_ExternalBaseIME);
 	FREEGLOBAL(go_CompositionState_START);
 	FREEGLOBAL(go_CompositionState_UPDATE);

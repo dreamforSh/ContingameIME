@@ -2,5 +2,11 @@
   "key.contingameime.hotkey": "Toggle IME State",
   "category.contingameime.keybinding": "ContingameIME",
   "alpha.contingameime.mode": "A",
-  "native.contingameime.mode": "ENG"
+  "native.contingameime.mode": "ENG",
+  "config.contingameime.title": "ContingameIME Settings",
+  "config.contingameime.disableIMEInCommandMode": "Disable IME for commands (/)",
+  "config.contingameime.autoReplaceSlashChar": "Auto-replace leading IME slash with /",
+  "config.contingameime.showIndicator": "Show A/ENG indicator",
+  "message.contingameime.unsupported_platform": "[ContingameIME] In-game IME is only available on Windows.",
+  "message.contingameime.native_failed": "[ContingameIME] Failed to load the native IME library; in-game IME is disabled (see the log)."
 }
